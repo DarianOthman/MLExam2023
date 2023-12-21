@@ -1,0 +1,685 @@
+---
+title: "Machine Learning Exam - Question 03"
+author: "Darian Othman I6240624"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_depth: 2
+---
+# Introduction - The Dataset
+In this third and final question, the aim is shifted towards a more technical approach. Indeed, throughout this question, an analysis of a dataset containing information regarding an advertisement campaign which conducted three experiments over 2 conditions for a period of one month per experiment. Therefore, it is the aim of this final question to understand which, if any, condition is better and draw clear conclusions of the overall experimental procedure.
+
+```{r Working Directory, echo=FALSE}
+setwd("C:/Users/I6240624/OneDrive/Courses/ML/Exam/ExamML")
+```
+
+```{r Libraries Import, echo=FALSE}
+library(readr)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+```
+
+```{r Data Import & Preprocessing, message=FALSE, echo=FALSE}
+
+#Import the data
+df <- read_csv("data-1.csv")
+
+# Reshape the data
+df <- reshape(df,
+              idvar = c("Experiment","date","Day"),
+              timevar = "condition",
+              direction = "long",
+              varying = c("visitor_A","purchase_A","visitor_B","purchase_B"),
+              sep="_")
+
+```
+
+First and foremost, it is important to have a clear view of the data at hand. For this, graphs representing the trends of visitors and purchases for each condition through the three experiments are created. In these graphs, various information can be found which are translated into a set of Hypotheses:
+**1.** The amount of visitors is not consistent throughout the experiments
+**2.** High variation in purchases lead to significant differences
+The following sections will dive into the study of these hypotheses.
+```{r Trends, echo=FALSE}
+
+# Plot the visitors
+ggplot(df, aes(x = Day, y = visitor, color = condition)) +
+  geom_line() +
+  facet_wrap(~Experiment) +
+  labs(title = "Trend of the Number of Visitors per Experiment",
+       x = "Days",
+       y = "Number of Visitors") +
+  theme(plot.title.position = "panel")
+
+# Plot the purchases
+ggplot(df, aes(x = Day, y = purchase, color = condition)) +
+  geom_line() +
+  facet_wrap(~Experiment) +
+  labs(title = "Trend of the Number of Purchases per Experiment", 
+       x = "Days",
+       y = "Number of Purchases") +
+  theme(plot.title.position = "panel")
+
+```
+
+# Amount of Visitors
+
+To begin, the amount of visitors across experiments are studied in two manners: compared to the mean and compared to one another. For this, two chi-square test are established to understand whether or not a significant differences can be observed. Finally, these results are plotted for a more visual representation.
+
+```{r Difference vs Mean Visitors, echo=FALSE}
+  # Create matrix values
+row1_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment1" & condition == "A"))["visitor"]),sum((df %>% filter(Experiment == "experiment1" & condition == "B"))["visitor"])))
+
+row2_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment2" & condition == "A"))["visitor"]),sum((df %>% filter(Experiment == "experiment2" & condition == "B"))["visitor"])))
+
+row3_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment3" & condition == "A"))["visitor"]),sum((df %>% filter(Experiment == "experiment3" & condition == "B"))["visitor"])))
+
+row1_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+row2_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+row3_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+
+
+  # Create matrix
+testtable_mean <- cbind(matrix(c(row1_column1, 
+                            row2_column1, 
+                            row3_column1, 
+                            row1_column2, 
+                            row2_column2, 
+                            row3_column2),
+                               ncol = 2))
+
+  # Perform Chi-square test
+csq_test_mean <- chisq.test(testtable_mean)
+
+  # Result
+if (csq_test_mean$p.value > 0.05){
+  print("We fail to reject the null hypothesis that there is no significant difference between the total number of visitors across experiments with at least 95% confidence.")
+} else {
+  print("We reject the null hypothesis that there is no significant difference between the total number of visitors across experiments with at least 95% confidence.")
+}
+df_testtable<-data.frame(testtable_mean)
+colnames(df_testtable)<-c("Actual Visitors", "Mean Visitors")
+df_testtable$experiment<-c("Experiment 1", "Experiment 2", "Experiment 3")
+
+df_testtable <- gather(df_testtable, key = "variable", value = "value", -experiment)
+
+# Create the bar chart for visualization
+print(ggplot(df_testtable, aes(x = experiment, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Actual VS Mean Amount of Visitors",
+       x = "Experiments",
+       y = "Number of Visitors",
+       fill = "Variable") +
+  theme_grey())
+
+```
+
+```{r Difference Across Visitors, echo = FALSE}
+  # Create matrix values
+row1_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment1" & condition == "A"))["visitor"]),sum((df %>% filter(Experiment == "experiment1" & condition == "B"))["visitor"])))
+
+row2_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment2" & condition == "A"))["visitor"]),sum((df %>% filter(Experiment == "experiment2" & condition == "B"))["visitor"])))
+
+row3_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment3" & condition == "A"))["visitor"]),sum((df %>% filter(Experiment == "experiment3" & condition == "B"))["visitor"])))
+
+row1_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+row2_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+row3_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+
+
+  # Create matrix
+testtable_across <- cbind(matrix(c(row1_column1, 
+                            row2_column1, 
+                            row3_column1, 
+                            row2_column1, 
+                            row1_column1, 
+                            row1_column1, 
+                            row3_column1, 
+                            row3_column1, 
+                            row2_column1),
+                               ncol = 3))
+
+  # Perform Chi-square test
+csq_test_across <- chisq.test(testtable_across)
+  # Result
+if (csq_test_across$p.value > 0.05){
+  print("We fail to reject the null hypothesis that there is no significant difference between the total number of visitors across experiments with at least 95% confidence.")
+} else {
+  print("We reject the null hypothesis that there is no significant difference between the total number of visitors across experiments with at least 95% confidence.")
+}
+df_testtable<-data.frame(Values=testtable_across[1,],Experiments=c("Experiment 1", "Experiment 2", "Experiment 3"))
+
+# Create the bar chart
+print(ggplot(df_testtable, aes(x = Experiments, y = Values, fill=Experiments)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Comparison of Visitor Amount Across Experiments",
+       x = "Experiments",
+       y = "Number of Visitors",
+       fill = "Variable") +
+  theme_grey())
+```
+From the output of both tests, some conclusions can be drawn. Indeed, consistent with what was hypothesised, there is statistical significance that tere is a difference between the amount of visitors compared to the mean and across experiments. By studying the graphs, it can be seen that the second experiment had a much lower visitor turnout compared to the other experiments. Because of this, caution needs to be taken when analyzing the purchase data.
+
+# Amount of Purchases
+
+Second, with the amount of visitors for each experiment studied, the same can be done for the amount of purchases. Once again, the same approach is taken using two chi-square test.
+
+```{r Difference vs Mean Purchase, echo=FALSE}
+  # Create matrix values
+row1_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment1" & condition == "A"))["purchase"]),sum((df %>% filter(Experiment == "experiment1" & condition == "B"))["purchase"])))
+
+row2_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment2" & condition == "A"))["purchase"]),sum((df %>% filter(Experiment == "experiment2" & condition == "B"))["purchase"])))
+
+row3_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment3" & condition == "A"))["purchase"]),sum((df %>% filter(Experiment == "experiment3" & condition == "B"))["purchase"])))
+
+row1_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+row2_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+row3_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+
+
+  # Create matrix
+testtable_across <- cbind(matrix(c(row1_column1, 
+                            row2_column1, 
+                            row3_column1, 
+                            row1_column2, 
+                            row2_column2, 
+                            row3_column2),
+                               ncol = 2))
+
+  # Perform Chi-square test
+csq_test_across <- chisq.test(testtable_across)
+
+  # Result
+if (csq_test_across$p.value > 0.05){
+  print("We fail to reject the null hypothesis that there is no significant difference between the total number of purchases across experiments with at least 95% confidence.")
+} else {
+  print("We reject the null hypothesis that there is no significant difference between the total number of purchases across experiments with at least 95% confidence.")
+}
+df_testtable<-data.frame(testtable_across)
+colnames(df_testtable)<-c("Actual purchases", "Mean purchases")
+df_testtable$experiment<-c("Experiment 1", "Experiment 2", "Experiment 3")
+
+df_testtable <- gather(df_testtable, key = "variable", value = "value", -experiment)
+
+# Create the bar chart
+print(ggplot(df_testtable, aes(x = experiment, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Actual VS Mean Amount of purchases",
+       x = "Experiments",
+       y = "Number of Purchases",
+       fill = "Variable") +
+  theme_grey())
+
+```
+
+```{r Difference Across Purchase, echo = FALSE}
+  # Create matrix values
+row1_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment1" & condition == "A"))["purchase"]),sum((df %>% filter(Experiment == "experiment1" & condition == "B"))["purchase"])))
+
+row2_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment2" & condition == "A"))["purchase"]),sum((df %>% filter(Experiment == "experiment2" & condition == "B"))["purchase"])))
+
+row3_column1 <- sum(c(sum((df %>% filter(Experiment == "experiment3" & condition == "A"))["purchase"]),sum((df %>% filter(Experiment == "experiment3" & condition == "B"))["purchase"])))
+
+row1_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+row2_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+row3_column2 <- sum(c(row1_column1, row2_column1, row3_column1))/3
+
+
+  # Create matrix
+testtable_across <- cbind(matrix(c(row1_column1, 
+                            row2_column1, 
+                            row3_column1, 
+                            row2_column1, 
+                            row1_column1, 
+                            row1_column1, 
+                            row3_column1, 
+                            row3_column1, 
+                            row2_column1),
+                               ncol = 3))
+
+  # Perform Chi-square test
+csq_test_across <- chisq.test(testtable_across)
+  # Result
+if (csq_test_across$p.value > 0.05){
+  print("We fail to reject the null hypothesis that there is no significant difference between the total number of purchases across experiments with at least 95% confidence.")
+} else {
+  print("We reject the null hypothesis that there is no significant difference between the total number of purchases across experiments with at least 95% confidence.")
+}
+df_testtable<-data.frame(Values=testtable_across[1,],Experiments=c("Experiment 1", "Experiment 2", "Experiment 3"))
+
+# Create the bar chart
+print(ggplot(df_testtable, aes(x = Experiments, y = Values, fill=Experiments)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Comparison of Purchase Amount Across Experiments",
+       x = "Experiments",
+       y = "Number of purchases",
+       fill = "Variable") +
+  theme_grey())
+```
+In a similar fashion as in the amount of visitors, there is a statistical significance in the difference in the number of purchases compared to the mean and across all experiments. Once more, this shows inconsistencies in the data related to the experimental procedure as three experiments showed three very different results. To further extend the study and dive into which condition is the best one, a similar study procedure can be done whilst taking into account the conditions.
+
+# Visitors per Condition
+In the first part of study of conditions, a test is performed to analyze whether there is, for each experiment, a statistical difference between condition A and B. Subsequently, a visual representation of the statistical significance is given through time to further study the movement of the values.
+
+```{r Visitors per Condition, echo=FALSE}
+for (i in 1:3){
+  groupdf<-(df%>%filter(Experiment==paste("experiment",i,sep=""))%>%group_by(condition)%>%summarise(sumvis=sum(visitor)))
+  row1column1 <- as.numeric(groupdf[1,"sumvis"])
+  row2column1 <- as.numeric(groupdf[2,"sumvis"])
+  row1column2<- as.numeric(df%>%filter(Experiment==paste("experiment",i,sep=""))%>%summarise(sumvis=sum(visitor)))
+  row2column2 <- as.numeric(df%>%filter(Experiment==paste("experiment",i,sep=""))%>%summarise(sumvis=sum(visitor)))
+  
+    # Create matrix
+  testtable <- cbind(matrix(c(row1column1, row2column1, row1column2, row2column2),
+                                 ncol = 2))
+
+    # Perform Chi-square test
+  csq_test <- chisq.test(testtable)
+  
+    # Result
+  if (csq_test$p.value > 0.05){
+    print("We fail to reject the null hypothesis that there is no significant difference between the total number of visitors across conditions within this experiment with at least 95% confidence.")
+  } else {
+    print("We reject the null hypothesis that there is no significant difference between the total number of visitors across conditions within this experiment with at least 95% confidence.")
+          # Extract the total number of visitors per condition
+  Exp_N <- as.data.frame(testtable[,1])
+  colnames(Exp_N) <- "Total_N"
+  Exp_N$condition <- c("Condition A", "Condition B")
+  
+    # Plot
+  print(ggplot(Exp_N, aes(x = condition, y = Total_N, fill = condition)) +
+    geom_col()+
+    labs(title = paste("Total Number of Visitors per Condition for Experiment ",i, sep=""), 
+         x = "Condition",
+         y = "Number of Visitors") +
+    theme(plot.title.position = "panel"))
+  }
+}
+```
+
+
+```{r cummulative sum per conditions visitors, echo=FALSE}
+# Cummulative sum of number of visitors per conditions
+    # Experiment 1
+experiment1A <- ave((df%>%filter(Experiment=="experiment1")%>%filter(condition=="A"))["visitor"], FUN = cumsum)
+experiment1B <- ave((df%>%filter(Experiment=="experiment1")%>%filter(condition=="B"))["visitor"], FUN = cumsum)
+  # Experiment 2
+experiment2A <- ave((df%>%filter(Experiment=="experiment2")%>%filter(condition=="A"))["visitor"], FUN = cumsum)
+experiment2B <- ave((df%>%filter(Experiment=="experiment2")%>%filter(condition=="B"))["visitor"], FUN = cumsum)
+
+  # Experiment 3
+experiment3A <- ave((df%>%filter(Experiment=="experiment3")%>%filter(condition=="A"))["visitor"], FUN = cumsum)
+experiment3B <- ave((df%>%filter(Experiment=="experiment3")%>%filter(condition=="B"))["visitor"], FUN = cumsum)
+
+experiments<-cbind(experiment1A,experiment2A,experiment3A,experiment1B,experiment2B,experiment3B,df$Day)
+colnames(experiments)<-c("experiment-1_A","experiment-2_A","experiment-3_A","experiment-1_B","experiment-2_B","experiment-3_B","Day")
+```
+
+```{r matrix creation exp1 visitors, echo=FALSE}
+  # Prepare the data
+experimentspval<-data.frame(c(rep(0,length(df$Experiment))))
+experimentspval$"p_exp-A" <- NA
+
+  # Run the for loop
+for (i in 1:nrow(experiments)){
+  
+  row1column1_Exp1 <- experiments[i, "experiment-1_A"]
+  row2column1_Exp1 <- experiments[i, "experiment-1_B"]
+  row1column2_Exp1 <- mean(c(row1column1_Exp1, row2column1_Exp1))
+  row2column2_Exp1 <- mean(c(row1column1_Exp1, row2column1_Exp1))
+  
+  testtable_Exp1 <- cbind(matrix(c(row1column1_Exp1, 
+                                   row2column1_Exp1, 
+                                   row1column2_Exp1, 
+                                   row2column2_Exp1),
+                                 ncol = 2))
+  
+  experimentspval$"p_exp-A"[i] <- chisq.test(testtable_Exp1)$p.value
+}
+```
+
+```{r matrix creation exp2 visitors, echo=FALSE}
+  # Prepare the data
+experimentspval$"p_exp-B" <- NA
+
+  # Run the for loop
+for (i in 1:nrow(experiments)){
+  
+  row1column1_exp2 <- experiments[i, "experiment-2_A"]
+  row2column1_exp2 <- experiments[i, "experiment-2_B"]
+  row1column2_exp2 <- mean(c(row1column1_exp2, row2column1_exp2))
+  row2column2_exp2 <- mean(c(row1column1_exp2, row2column1_exp2))
+  
+  testtable_exp2 <- cbind(matrix(c(row1column1_exp2, 
+                                   row2column1_exp2, 
+                                   row1column2_exp2, 
+                                   row2column2_exp2),
+                                 ncol = 2))
+  
+  experimentspval$"p_exp-B"[i] <- chisq.test(testtable_exp2)$p.value
+}
+```
+
+```{r matrix creation exp3 visitors, echo=FALSE}
+  # Prepare the data
+experimentspval$"p_exp-C" <- NA
+
+  # Run the for loop
+for (i in 1:nrow(experiments)){
+  
+  row1column1_exp3 <- experiments[i, "experiment-3_A"]
+  row2column1_exp3 <- experiments[i, "experiment-3_B"]
+  row1column2_exp3 <- mean(c(row1column1_exp3, row2column1_exp3))
+  row2column2_exp3 <- mean(c(row1column1_exp3, row2column1_exp3))
+  
+  testtable_exp3 <- cbind(matrix(c(row1column1_exp3, 
+                                   row2column1_exp3, 
+                                   row1column2_exp3, 
+                                   row2column2_exp3),
+                                 ncol = 2))
+  
+  experimentspval$"p_exp-C"[i] <- chisq.test(testtable_exp3)$p.value
+}
+```
+
+```{r Combination of Matrices Visitors, warning=FALSE, echo=FALSE}
+experimentspval<- cbind(experimentspval,Day=df$Day)
+experimentspval <- select(experimentspval[1:30,], -1)
+# Reshape the data
+experimentspvals <- reshape(experimentspval,
+                       timevar = "experiments",
+                       direction = "long",
+                       varying = c("p_exp-A","p_exp-B","p_exp-C"),
+                       sep = "-")
+experimentspvals<- select(experimentspvals,-id)
+```
+
+```{r Plot Visitor Difference in Experiments Through Time, message=FALSE, echo=FALSE}
+  # Plot
+ggplot(experimentspvals, aes(x = Day, y = p_exp, color=experiments))+
+  geom_line()+
+  geom_line(aes(y = 0.05), color = "red", linetype = "dotted") +
+  geom_text(aes(x = 1, y = 0.05, label = "alpha = 5%"), vjust = -2, hjust = 0, color = "black") +
+  labs(title = "Statistical Signifiance Over Time (Number of Visitors Across Conditions)", 
+       x = "Days",
+       y = "P-value")+
+  theme(plot.title.position = "panel")
+```
+
+From the data, only one experiment exhibited significant differences in the amount of visitors for each experiment. As a matter of fact, experiment 2 had a significantly higher amount of visitors. The implications of these results are directly related to the further study of the amount of purchases performed based on the conditions. Indeed, as there is an imbalance in the amount of visitors, it is not possible to perform a study of condition across all experiments as this would simply translate the imbalance rather than the shear difference in purchases.
+
+# Purchase per Condition
+
+As already explained, it is only possible to make a study of the purchases based on the condition inside each experiment. The results are presented here:
+```{r Purchase per Condition, echo=FALSE}
+for (i in 1:3){
+  groupdf<-(df%>%filter(Experiment==paste("experiment",i,sep=""))%>%group_by(condition)%>%summarise(sumpur=sum(purchase)))
+  row1column1 <- as.numeric(groupdf[1,"sumpur"])
+  row2column1 <- as.numeric(groupdf[2,"sumpur"])
+  row1column2<- as.numeric(df%>%filter(Experiment==paste("experiment",i,sep=""))%>%summarise(sumpur=sum(purchase)))
+  row2column2 <- as.numeric(df%>%filter(Experiment==paste("experiment",i,sep=""))%>%summarise(sumpur=sum(purchase)))
+  
+    # Create matrix
+  testtable <- cbind(matrix(c(row1column1, row2column1, row1column2, row2column2),
+                                 ncol = 2))
+  
+    # Perform Chi-square test
+  csq_test <- chisq.test(testtable)
+  
+    # Result
+  if (csq_test$p.value > 0.05){
+    print("We fail to reject the null hypothesis that there is no significant difference between the total number of visitors across conditions within this experiment with at least 95% confidence.")
+  } else {
+    print("We reject the null hypothesis that there is no significant difference between the total number of visitors across conditions within this experiment with at least 95% confidence.")
+          # Extract the total number of visitors per condition
+  Exp_N <- as.data.frame(testtable[,1])
+  colnames(Exp_N) <- "Total_N"
+  Exp_N$condition <- c("Condition A", "Condition B")
+  
+    # Plot
+  print(ggplot(Exp_N, aes(x = condition, y = Total_N, fill = condition)) +
+    geom_col()+
+    labs(title = paste("Total Number of Purchases per Condition for Experiment ",i, sep=""), 
+         x = "Condition",
+         y = "Number of Purchase") +
+    theme(plot.title.position = "panel"))
+  }
+}
+```
+```{r cummulative sum per conditions purchase, echo=FALSE}
+# Cummulative sum of number of purchase per conditions
+    # Experiment 1
+experiment1A <- ave((df%>%filter(Experiment=="experiment1")%>%filter(condition=="A"))["purchase"], FUN = cumsum)
+experiment1B <- ave((df%>%filter(Experiment=="experiment1")%>%filter(condition=="B"))["purchase"], FUN = cumsum)
+  # Experiment 2
+experiment2A <- ave((df%>%filter(Experiment=="experiment2")%>%filter(condition=="A"))["purchase"], FUN = cumsum)
+experiment2B <- ave((df%>%filter(Experiment=="experiment2")%>%filter(condition=="B"))["purchase"], FUN = cumsum)
+
+  # Experiment 3
+experiment3A <- ave((df%>%filter(Experiment=="experiment3")%>%filter(condition=="A"))["purchase"], FUN = cumsum)
+experiment3B <- ave((df%>%filter(Experiment=="experiment3")%>%filter(condition=="B"))["purchase"], FUN = cumsum)
+
+experiments<-cbind(experiment1A,experiment2A,experiment3A,experiment1B,experiment2B,experiment3B,df$Day)
+colnames(experiments)<-c("experiment-1_A","experiment-2_A","experiment-3_A","experiment-1_B","experiment-2_B","experiment-3_B","Day")
+```
+
+```{r matrix creation exp1 purchase, echo=FALSE}
+  # Prepare the data
+experimentspval<-data.frame(c(rep(0,length(df$Experiment))))
+experimentspval$"p_exp-A" <- NA
+
+  # Run the for loop
+for (i in 1:nrow(experiments)){
+  
+  row1column1_Exp1 <- experiments[i, "experiment-1_A"]
+  row2column1_Exp1 <- experiments[i, "experiment-1_B"]
+  row1column2_Exp1 <- mean(c(row1column1_Exp1, row2column1_Exp1))
+  row2column2_Exp1 <- mean(c(row1column1_Exp1, row2column1_Exp1))
+  
+  testtable_Exp1 <- cbind(matrix(c(row1column1_Exp1, 
+                                   row2column1_Exp1, 
+                                   row1column2_Exp1, 
+                                   row2column2_Exp1),
+                                 ncol = 2))
+  
+  experimentspval$"p_exp-A"[i] <- chisq.test(testtable_Exp1)$p.value
+}
+```
+
+```{r matrix creation exp2 purchase, warning=FALSE, echo=FALSE}
+  # Prepare the data
+experimentspval$"p_exp-B" <- NA
+
+  # Run the for loop
+for (i in 1:nrow(experiments)){
+  
+  row1column1_exp2 <- experiments[i, "experiment-2_A"]
+  row2column1_exp2 <- experiments[i, "experiment-2_B"]
+  row1column2_exp2 <- mean(c(row1column1_exp2, row2column1_exp2))
+  row2column2_exp2 <- mean(c(row1column1_exp2, row2column1_exp2))
+  
+  testtable_exp2 <- cbind(matrix(c(row1column1_exp2, 
+                                   row2column1_exp2, 
+                                   row1column2_exp2, 
+                                   row2column2_exp2),
+                                 ncol = 2))
+  
+  experimentspval$"p_exp-B"[i] <- chisq.test(testtable_exp2)$p.value
+}
+```
+
+```{r matrix creation exp3 purchase, echo=FALSE}
+  # Prepare the data
+experimentspval$"p_exp-C" <- NA
+
+  # Run the for loop
+for (i in 1:nrow(experiments)){
+  
+  row1column1_exp3 <- experiments[i, "experiment-3_A"]
+  row2column1_exp3 <- experiments[i, "experiment-3_B"]
+  row1column2_exp3 <- mean(c(row1column1_exp3, row2column1_exp3))
+  row2column2_exp3 <- mean(c(row1column1_exp3, row2column1_exp3))
+  
+  testtable_exp3 <- cbind(matrix(c(row1column1_exp3, 
+                                   row2column1_exp3, 
+                                   row1column2_exp3, 
+                                   row2column2_exp3),
+                                 ncol = 2))
+  
+  experimentspval$"p_exp-C"[i] <- chisq.test(testtable_exp3)$p.value
+}
+```
+
+```{r Matrix combination purchase, warning=FALSE, echo=FALSE}
+experimentspval<- cbind(experimentspval,Day=df$Day)
+experimentspval <- select(experimentspval[1:30,], -1)
+# Reshape the data
+experimentspvals <- reshape(experimentspval,
+                       timevar = "experiments",
+                       direction = "long",
+                       varying = c("p_exp-A","p_exp-B","p_exp-C"),
+                       sep = "-")
+experimentspvals<- select(experimentspvals,-id)
+```
+
+```{r Plot Purchase Difference in Experiments Through Time, message=FALSE, echo=FALSE}
+  # Plot
+ggplot(experimentspvals, aes(x = Day, y = p_exp, color=experiments))+
+  geom_line()+
+  geom_line(aes(y = 0.05), color = "red", linetype = "dotted") +
+  geom_text(aes(x = 1, y = 0.05, label = "alpha = 5%"), vjust = -2, hjust = 0, color = "black") +
+  labs(title = "Statistical Signifiance Over Time (Number of Purchase Across Conditions)", 
+       x = "Days",
+       y = "P-value")+
+  theme(plot.title.position = "panel")
+```
+
+By studying the results, confusing results arise. Indeed, two experiments were found to have significant differences in the amount of purchase made. Unfortunately however, both studies show symmetrically opposite results as experiment 1 has higher purchases for condition A and experiment 3 has higher purchases for condition B. Because of this, a different method should be adopted to study whether or not a true impact of the condition exist. The subsequent section explains this.
+
+# Rate of Purchase
+
+To alleviate the biases presented in the previous sections, it is possible to create a new variable which holds the rate of purchase calculated by Purchase/Visitor. This way, the amount of visitors in a single experiment does not impact the final result. To start, the rate is plotted:
+
+```{r Purchase Rate, echo=FALSE}
+ggplot(df, aes(x = Day, y = purchase/visitor, color = condition)) +
+  geom_line() +
+  facet_wrap(~Experiment) +
+  labs(title = "Purchase Rate per experiment", 
+       x = "Days",
+       y = "Number of Purchase Rate") +
+  theme(plot.title.position = "panel")
+```
+
+From this, it is possible to start studying the potential significance of the conditions. For this, a similar approach is used but with a different visualisation technique. Indeed, confidence intervals are first created to understand the results based on the experiments and then the same approach is used but for the globality of the data regardless of the experiment:
+
+```{r convrate experiment, echo=FALSE}
+  # Calcute the conversion rate for each experiment
+convrate<-data.frame(c(rep(0,30)))
+    # Experiment 1
+Rate_1_A <- ave((df%>%filter(Experiment=="experiment1")%>%filter(condition=="A"))["purchase"], FUN = cumsum) / ave((df%>%filter(Experiment=="experiment1")%>%filter(condition=="A"))["visitor"], FUN = cumsum)
+
+Rate_1_B <- ave((df%>%filter(Experiment=="experiment1")%>%filter(condition=="B"))["purchase"], FUN = cumsum) / ave((df%>%filter(Experiment=="experiment1")%>%filter(condition=="B"))["visitor"], FUN = cumsum)
+
+    # Experiment 2
+Rate_2_A <- ave((df%>%filter(Experiment=="experiment2")%>%filter(condition=="A"))["purchase"], FUN = cumsum) / ave((df%>%filter(Experiment=="experiment2")%>%filter(condition=="A"))["visitor"], FUN = cumsum)
+
+Rate_2_B <- ave((df%>%filter(Experiment=="experiment2")%>%filter(condition=="B"))["purchase"], FUN = cumsum) / ave((df%>%filter(Experiment=="experiment2")%>%filter(condition=="B"))["visitor"], FUN = cumsum)
+
+    # Experiment 3
+Rate_3_A <- ave((df%>%filter(Experiment=="experiment3")%>%filter(condition=="A"))["purchase"], FUN = cumsum) / ave((df%>%filter(Experiment=="experiment3")%>%filter(condition=="A"))["visitor"], FUN = cumsum)
+
+Rate_3_B <- ave((df%>%filter(Experiment=="experiment3")%>%filter(condition=="B"))["purchase"], FUN = cumsum) / ave((df%>%filter(Experiment=="experiment3")%>%filter(condition=="B"))["visitor"], FUN = cumsum)
+
+
+  # Calculte the standard deviation for each experiment
+    # Experiment 1
+cSD_nclicks_1_A <- sqrt(Rate_1_A * (1 - Rate_1_A)/ ave((df%>%filter(Experiment=="experiment1")%>%filter(condition=="A"))["visitor"], FUN = cumsum))
+
+cSD_nclicks_1_B <- sqrt(Rate_1_B * (1 - Rate_1_B)/ ave((df%>%filter(Experiment=="experiment1")%>%filter(condition=="B"))["visitor"], FUN = cumsum))
+
+    # Experiment 2
+cSD_nclicks_2_A <- sqrt(Rate_2_A * (1 - Rate_2_A)/ ave((df%>%filter(Experiment=="experiment2")%>%filter(condition=="A"))["visitor"], FUN = cumsum))
+
+cSD_nclicks_2_B <- sqrt(Rate_2_B * (1 - Rate_2_B)/ ave((df%>%filter(Experiment=="experiment2")%>%filter(condition=="B"))["visitor"], FUN = cumsum))
+
+    # Experiment 3
+cSD_nclicks_3_A <- sqrt(Rate_3_A * (1 - Rate_3_A)/ ave((df%>%filter(Experiment=="experiment3")%>%filter(condition=="A"))["visitor"], FUN = cumsum))
+
+cSD_nclicks_3_B <- sqrt(Rate_3_B * (1 - Rate_3_B)/ ave((df%>%filter(Experiment=="experiment3")%>%filter(condition=="B"))["visitor"], FUN = cumsum))
+
+convrate<-cbind(convrate,Rate_1_A,Rate_1_B,Rate_2_A,Rate_2_B,Rate_3_A,Rate_3_B,cSD_nclicks_1_A,cSD_nclicks_1_B,cSD_nclicks_2_A,cSD_nclicks_2_B,cSD_nclicks_3_A,cSD_nclicks_3_B,experimentspval$Day)
+colnames(convrate) <- c(0,"Rate-1_A","Rate-1_B","Rate-2_A","Rate-2_B","Rate-3_A","Rate-3_B","cSDnclicks-1_A","cSDnclicks-1_B","cSDnclicks-2_A","cSDnclicks-2_B","cSDnclicks-3_A","cSDnclicks-3_B","Day")
+```
+
+```{r Data Manipulation Convrate, echo=FALSE}
+convrate <- select(convrate[1:30,], -1)
+```
+
+```{r Reshape Convrate, echo=FALSE}
+a <- reshape(convrate,
+             idvar = c("Day"),
+                       timevar = "condition",
+                       direction = "long",
+                       varying = c("Rate-1_A","Rate-1_B","Rate-2_A","Rate-2_B","Rate-3_A","Rate-3_B","cSDnclicks-1_A","cSDnclicks-1_B","cSDnclicks-2_A","cSDnclicks-2_B","cSDnclicks-3_A","cSDnclicks-3_B"),
+                       sep = "_")
+a <- reshape(a,
+             idvar = c("Day","condition"),
+                       timevar = "experiment",
+                       direction = "long",
+                       varying = c("Rate-1","Rate-2","Rate-3","cSDnclicks-1","cSDnclicks-2","cSDnclicks-3"),
+                       sep = "-")
+```
+
+```{r Plotting Confidence Interval Convrate Experiment, echo=FALSE}
+ggplot(a, aes(x = Day, y = Rate, group = condition, fill = condition, color = condition)) +geom_line() +
+  facet_grid(experiment ~ .) +
+  geom_ribbon(aes(ymin = Rate - 1.96 * cSDnclicks, ymax = Rate + 1.96 * cSDnclicks)) +
+  labs(title = "95% Confidence Intervals of the Conversion Rate (Purchase/Visitors)", 
+       x = "Days",
+       y = "Conversion rate (%)") +
+  theme(plot.title.position = "panel")
+```
+
+```{r Convrate Across, echo=FALSE}
+  # Calcute the conversion rate 
+convrate<-data.frame(c(rep(0,30)))
+Rate_1_A <- ave((df%>%filter(condition=="A"))["purchase"], FUN = cumsum) / ave((df%>%filter(condition=="A"))["visitor"], FUN = cumsum)
+
+Rate_1_B <- ave((df%>%filter(condition=="B"))["purchase"], FUN = cumsum) / ave((df%>%filter(condition=="B"))["visitor"], FUN = cumsum)
+
+
+  # Calculte the standard deviation for each experiment
+    # Experiment 1
+cSD_nclicks_1_A <- sqrt(Rate_1_A * (1 - Rate_1_A)/ ave((df%>%filter(condition=="A"))["visitor"], FUN = cumsum))
+
+cSD_nclicks_1_B <- sqrt(Rate_1_B * (1 - Rate_1_B)/ ave((df%>%filter(condition=="B"))["visitor"], FUN = cumsum))
+
+convrate<-cbind(convrate,Rate_1_A,Rate_1_B,cSD_nclicks_1_A,cSD_nclicks_1_B,experimentspval$Day)
+colnames(convrate) <- c(0,"Rate_A","Rate_B","cSDnclicks_A","cSDnclicks_B","Day")
+```
+
+```{r Data manipulation Across, echo=FALSE}
+convrate <- select(convrate[1:30,], -1)
+```
+
+```{r Reshape Across, echo=FALSE}
+a <- reshape(convrate,
+             idvar = c("Day"),
+                       timevar = "condition",
+                       direction = "long",
+                       varying = c("Rate_A","Rate_B","cSDnclicks_A","cSDnclicks_B"),
+                       sep = "_")
+```
+
+```{r Plot Rate Across, echo=FALSE}
+ggplot(a, aes(x = Day, y = Rate, group = condition, fill = condition, color = condition)) +geom_line() +
+  geom_ribbon(aes(ymin = Rate - 1.96 * cSDnclicks, ymax = Rate + 1.96 * cSDnclicks)) +
+  labs(title = "95% Confidence Intervals of the Conversion Rate (Purchase/Visitors)", 
+       x = "Days",
+       y = "Conversion rate (%)") +
+  theme(plot.title.position = "panel")
+```
+
+By performing the study, it can be seen that on an experimental level, no clear significance appears. This can be seen graphically as both confidence interval keep crossing one another. Moreover, as showed in the study of the rate of purchase, statistical significance is not consistent throughout the experiments as condition A has a higher rate in experiment 1 but a lower one in experiment 3. On a global basis however, a slight significance seem to appear by the end of the 30 day period. This could be explained by the slight cumulative differences which have been studied throughout the multiple previous tests.
+As a conclusion, there seem, statistically, not to be any evidence which would show that condition A or B is better inside or across all experiments.
